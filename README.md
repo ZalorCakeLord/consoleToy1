@@ -23,6 +23,6 @@ Has a few built in functions:
 
 
 Has a few quality of life bits, such as autoplacing a closing parenthese/bracket or similar.
-  
+The save function will compress the code in the input box and display it in output. You can then paste the compressed code into the input box and click the hourglass to decompress it. Working on a feature to run code from url.
   
   
