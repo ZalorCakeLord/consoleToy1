@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Console</title>
+    <script language="javascript" src="lzstring.js"></script>
+    <style>
+      #input {
+            width: 98%;
+            font-size: 3rem;
+            border: none;
+            background-color: #252525;
+            color: #008F11;
+            text-align: left;
+            padding-right: 20px;
+            padding-left: 10px;
+            color: white
+            box-shadow: inset 0px 1px 0px rgba(255,255,255,.5),0px 1px 3px rgba(0,0,0,0.3);
+            border-color: #111;
+            /* color: #555; */
+            background: -webkit-linear-gradient(top,  #000, #222 15%, #333 28%, #000  63%, #2f2f2f 87%, #000);
+          }
+
+          #display {
+                width: 98%;
+                font-size: 3rem;
+                border: none;
+                background-color: #252525;
+                color: #008F11;
+                text-align: center;
+                padding-right: 20px;
+                padding-left: 10px;
+                color: white
+                box-shadow: inset 0px 1px 0px rgba(255,255,255,.5),0px 1px 3px rgba(0,0,0,0.3);
+                border-color: #111;
+                /* color: #555; */
+                background: -webkit-linear-gradient(top,  #000, #222 15%, #333 28%, #000  63%, #2f2f2f 87%, #000);
+              }
+      body {
+        background-color: #3964A6
+
+      }
+
+      button {
+        height: 80px;
+        /* background-color: #fff; */
+        border-radius: 3px;
+        border: 1px solid #c4c4c4;
+        /* background-color: transparent; */
+        font-size: 2rem;
+        /* color: #333; */
+        border-color: #7c7c7c;
+       background-image: -webkit-repeating-linear-gradient(left, hsla(0,0%,100%,0) 0%, hsla(0,0%,100%,0)   6%, hsla(0,0%,100%, .1) 7.5%),
+           -webkit-repeating-linear-gradient(left, hsla(0,0%,  0%,0) 0%, hsla(0,0%,  0%,0)   4%, hsla(0,0%,  0%,.03) 4.5%),
+           -webkit-repeating-linear-gradient(left, hsla(0,0%,100%,0) 0%, hsla(0,0%,100%,0) 1.2%, hsla(0,0%,100%,.15) 2.2%),
+
+           linear-gradient(180deg, hsl(0,0%,78%)  0%,
+           hsl(0,0%,90%) 47%,
+           hsl(0,0%,78%) 53%,
+           hsl(0,0%,70%)100%);
+      }
+
+      button:hover {
+        background-color: #eaeaea;
+      }
+      .calc {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-row-gap: 10px;
+        grid-column-gap: 20px;
+      }
+
+    </style>
+  </head>
+  <body onload="loaded()">
+    <textarea name="out" id="display" rows="6" cols="10" wrap="on"></textarea>
+
+    <textarea name="in" id="input" rows="3" cols="10" wrap="on" oninput="typing()"></textarea>
+
+
+    <br>
+    <br>
+
+    <div class="calc">
+    <button type="button" name="button" id="exec" onclick="exec()">exec</button>
+    <button type="button" name="button" id="config" onclick="config()">config</button>
+    <button type="button" name="button" id="mute" onclick="mute()">🔊</button>
+    <button type="button" name="button" id="save" onclick="save()">💾</button>
+    <button type="button" name="button" id="load" onclick="load()">⌛</button>
+    </div>
+  </body>
+  <script type="text/javascript">
+    let mem = ""
+    let width = 15
+    let dispstack = []
+    let op = ''
+    let ind = 0
+    let muted = 0
+    let input = document.getElementById("input")
+
+    async function save(){
+      // let url = location.protocol + '//' + location.host + location.pathname
+      let str = LZString.compressToUTF16(input.value)
+      scrollText(("?"+str),1)
+    }
+    function load(){
+
+      loaded(input.value)
+    }
+
+    async function loaded(toLoad){
+      let queryString
+      if(!toLoad) queryString = window.location.search;
+      else{
+        queryString = toLoad
+      }
+      if(queryString){
+        let repMap = [
+          "%20"," ",
+          "%27","'",
+          "%22",'"'
+        ]
+        let str = queryString.slice(1)
+        try {
+          if(!toLoad) str = LZString.decompressFromUTF16(decodeURI(str))
+          else str = LZString.decompressFromUTF16(str)
+
+          scrollText("Loaded Successfully!")
+
+        } catch (e) {
+          await scrollText("Error decoding:",50)
+          await delay(600)
+          return scrollText(`${e.message}`,50)
+        }
+
+        // for(let i=0;i<repMap.length;i+=2){
+        //   str = str.replaceAll(repMap[i],repMap[i+1])
+        // }
+
+
+        // str.replace(/%20/g,' ')
+        // str.replace(/%20/g,' ')
+
+        mem = str
+        input.value = str
+      }
+      else scrollText('No prior code detected.',40)
+    }
+
+    function config(){
+      width = input.cols
+      scrollText(`${width} cols in input`,40)
+    }
+
+
+    function typing(){
+      beep()
+      mem = input.value
+    }
+
+    function mute(){
+      let button = document.getElementById("mute")
+      if(muted===0){
+        muted=1
+        button.innerText = "🔈"
+      }
+      else{
+        muted=0
+
+        button.innerText = "🔊"
+      }
+    }
+
+
+
+    function display(txt, sw){
+      let disp = document.getElementById("display")
+      if(sw) dispstack=''
+      dispstack+=txt
+      disp.innerText = dispstack
+    }
+
+
+    async function exec(){
+      let button = document.getElementById("exec")
+      button.innerText = "executing..."
+      await delay(500)
+      button.innerText = "exec"
+      beep()
+    try {
+      let log=(text)=>scrollText(text,40)
+        eval(input.value)
+        console.log(input)
+        console.log(mem)
+
+    } catch (e) {
+
+      errCaught(e)
+
+    }
+
+    async function errCaught(e){
+      if(e.name==="TypeError"){
+        await scrollText("haven't figured out how",20)
+        await delay(600)
+        await scrollText("to do this yet lol",20)
+        return console.log(e)
+      }
+
+      await scrollText("Unknown error, as follows:",30)
+      await delay(600)
+      return scrollText(`${e.message}`,30)
+    }
+
+    }
+
+
+    function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    async function sleep(fn, ...args) {
+        await timeout(3000);
+        return fn(...args);
+    }
+
+    async function scrollText(text,time){
+      try {
+        dispC()
+        let list = `${text}`.split("")
+        for(let i=0;i<list.length;i++){
+          beep()
+          display(list[i])
+          var textarea = document.getElementById('display');
+          textarea.scrollTop = textarea.scrollHeight;
+          await delay(time)
+        }
+      } catch (e) {
+        scrollText(e.message,20)
+      }
+
+    }
+
+    async function scrollLoop(text,time,loops){
+      for(let i=0;i<loops;i++){
+        await scrollText(text,time)
+      }
+    }
+
+    let dispC=()=>{display('',1)}
+    async function goof(){
+
+      let text = "TRACING IP..."
+      await scrollText(text,250)
+      await delay(100)
+      await scrollLoop("...",600,3)
+      await delay(70)
+      await scrollText("Verified, Deploying Payload",200)
+      await delay(100)
+      let newHTML = document.open("text/html", "replace");
+      newHTML.write(`
+        <html>
+        <style>
+        body, html {
+          height: 100%;
+        }
+
+        .bg {
+          /* The image used */
+          background-image: url("https://upload.wikimedia.org/wikipedia/commons/3/3b/Windows_9X_BSOD.png?20220822031037");
+
+          /* Full height */
+          height: 100%;
+
+          /* Center and scale the image nicely */
+          background-position: center;
+          background-repeat: no-repeat;
+          background-size: cover;
+        }
+
+        </style>
+        <body>
+        <div class="bg"></div>
+        </body>
+        </html>
+        `);
+
+    }
+
+    function setOp(newOp){
+      beep()
+      mem.push(curr.join(""))
+      mem.push(newOp)
+      curr=[]
+      if(ind===1) ind=0
+      display(newOp)
+    }
+
+    document.addEventListener('keydown', function(event) {
+      console.log(event.key)
+
+        if (event.ctrlKey && event.key === 'm') {
+          exec()
+      }
+    });
+
+
+
+
+    function beep() {
+    var snd = new  Audio("data:audio/wav;base64,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qJrx4KOQjahZxWbcZgztj2c49nKmkId44S71j0c8eV9yDK6uPRzx5X18eDvjvQ6yKo9ZSS6l//8elePK/Lf//IInrOF/FvDoADYAGBMGb7FtErm5MXMlmPAJQVgWta7Zx2go+8xJ0UiCb8LHHdftWyLJE0QIAIsI+UbXu67dZMjmgDGCGl1H+vpF4NSDckSIkk7Vd+sxEhBQMRU8j/12UIRhzSaUdQ+rQU5kGeFxm+hb1oh6pWWmv3uvmReDl0UnvtapVaIzo1jZbf/pD6ElLqSX+rUmOQNpJFa/r+sa4e/pBlAABoAAAAA3CUgShLdGIxsY7AUABPRrgCABdDuQ5GC7DqPQCgbbJUAoRSUj+NIEig0YfyWUho1VBBBA//uQZB4ABZx5zfMakeAAAAmwAAAAF5F3P0w9GtAAACfAAAAAwLhMDmAYWMgVEG1U0FIGCBgXBXAtfMH10000EEEEEECUBYln03TTTdNBDZopopYvrTTdNa325mImNg3TTPV9q3pmY0xoO6bv3r00y+IDGid/9aaaZTGMuj9mpu9Mpio1dXrr5HERTZSmqU36A3CumzN/9Robv/Xx4v9ijkSRSNLQhAWumap82WRSBUqXStV/YcS+XVLnSS+WLDroqArFkMEsAS+eWmrUzrO0oEmE40RlMZ5+ODIkAyKAGUwZ3mVKmcamcJnMW26MRPgUw6j+LkhyHGVGYjSUUKNpuJUQoOIAyDvEyG8S5yfK6dhZc0Tx1KI/gviKL6qvvFs1+bWtaz58uUNnryq6kt5RzOCkPWlVqVX2a/EEBUdU1KrXLf40GoiiFXK///qpoiDXrOgqDR38JB0bw7SoL+ZB9o1RCkQjQ2CBYZKd/+VJxZRRZlqSkKiws0WFxUyCwsKiMy7hUVFhIaCrNQsKkTIsLivwKKigsj8XYlwt/WKi2N4d//uQRCSAAjURNIHpMZBGYiaQPSYyAAABLAAAAAAAACWAAAAApUF/Mg+0aohSIRobBAsMlO//Kk4soosy1JSFRYWaLC4qZBYWFRGZdwqKiwkNBVmoWFSJkWFxX4FFRQWR+LsS4W/rFRb/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////VEFHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU291bmRib3kuZGUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMjAwNGh0dHA6Ly93d3cuc291bmRib3kuZGUAAAAAAAAAACU=");
+
+    if(!muted) snd.play();
+}
+
+  </script>
+</html>
